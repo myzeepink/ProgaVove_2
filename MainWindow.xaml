@@ -1,0 +1,124 @@
+﻿<Window x:Class="ProgaVove2.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:ProgaVove2"
+        xmlns:converters="clr-namespace:ProgaVove2.Converters"
+        Title="Управление объявлениями" 
+        Width="650" Height="650"
+        MinWidth="650" MinHeight="650"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="CanResizeWithGrip"
+        SizeToContent="Manual">
+    <!--обновление на F5-->
+    <Window.InputBindings>
+        <KeyBinding Key="F5" Command="{Binding RefreshCommand}"/>
+    </Window.InputBindings>
+    <Window.Resources>
+        <Style TargetType="ScrollViewer">
+            <Setter Property="PanningMode" Value="VerticalOnly"/>
+            <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="HorizontalScrollBarVisibility" Value="Disabled"/>
+            <Setter Property="UseLayoutRounding" Value="True"/>
+            <Setter Property="ScrollViewer.CanContentScroll" Value="True"/>
+        </Style>
+    </Window.Resources>
+    <Grid>
+        <!--гига-разметка основных элементов-->
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <!--под заголовок-->
+            <RowDefinition Height="Auto"/>
+            <!--под поиск и кнопки-->
+            <RowDefinition Height="*"/>
+            <!--остальное-->
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+
+        <!--заголовок-->
+        <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
+                   Text="Используемые объявления"
+                   FontSize="20" Margin="10,10,10,0"/>
+
+        <!--поиск + кнопки-->
+        <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" Margin="10,5">
+            <TextBlock Text="Поиск:" FontSize="16" VerticalAlignment="Center"/>
+            <TextBox x:Name="SearchBox" Width="250" Margin="5,0" 
+                    TextChanged="SearchBox_TextChanged"/>
+            <Button Content="Обновить" Width="150"
+                   Click="CheckExpired_Click"/>
+            <Button Content="Выбрать папку" Width="150"
+                   Click="SelectFolder_Click"/>
+        </StackPanel>
+
+        <!--основной список-->
+        
+
+        <ScrollViewer Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+              VerticalScrollBarVisibility="Auto"
+              CanContentScroll="False">
+            <ListBox x:Name="ReadyListBox" 
+             ItemsSource="{Binding Advertisements}"
+             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+             ScrollViewer.VerticalScrollBarVisibility="Disabled">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Border Padding="5" BorderBrush="LightGray" BorderThickness="0,0,0,1" Height="100">
+                            <StackPanel>
+                                <!--верхняя строка с названием и датой-->
+                                <DockPanel>
+                                    <TextBlock Text="{Binding FolderName}" 
+                             FontWeight="Bold"
+                             TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="{Binding ExpiryDate, StringFormat='до {0:dd.MM.yyyy}'}" 
+                             Foreground="DarkRed" 
+                             DockPanel.Dock="Right"/>
+                                </DockPanel>
+
+
+                                <!--кнопки-->
+                                <StackPanel Orientation="Horizontal" 
+                          Visibility="{Binding ExpiryDate, Converter={StaticResource NullToVisibilityConverter}}">
+                                    <Button Content="+30 дней" Width="70" Margin="0,0,5,0"
+                           Click="AddDays_Click" Tag="30"/>
+                                    <Button Content="+60 дней" Width="70" Margin="0,0,5,0"
+                           Click="AddDays_Click" Tag="60"/>
+                                    <Button Content="Выбрать дату" 
+                           Click="SelectDate_Click"/>
+                                </StackPanel>
+
+                                <!--картинки-->
+                                <ItemsControl ItemsSource="{Binding OptimizedImages}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel Orientation="Horizontal"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Image Source="{Binding}" 
+                                  Width="50" Height="50" Margin="5,0,0,0"
+                                  RenderOptions.BitmapScalingMode="LowQuality"
+                                  CacheMode="BitmapCache"/>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </ScrollViewer>
+
+        <!--прогрессбар-->
+        <ProgressBar x:Name="LoadingProgressBar"
+                   Grid.Row="2" Grid.Column="1"
+                   Height="10" Width="150"
+                   Margin="0,0,10,10"
+                   VerticalAlignment="Bottom"
+                   IsIndeterminate="False"
+                   Visibility="Collapsed"/>
+    </Grid>
+</Window>

@@ -1,0 +1,55 @@
+public MainWindow()
+        {
+            InitializeComponent();
+            DataContext = this; // обращаемся к текущему контексту
+            var timer = new DispatcherTimer { Interval = TimeSpan.FromHours(1) };
+            timer.Tick += (s, e) => SafeCheckExpired();
+            timer.Start();
+            LoadAdvertisements(); // подгрузка обьявлений из указанной директории
+
+        }
+
+
+
+
+        <Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <COMReference Include="{215d64d2-031c-33c7-96e3-61794cd1ee61}">
+      <WrapperTool>tlbimp</WrapperTool>
+      <VersionMinor>4</VersionMinor>
+      <VersionMajor>2</VersionMajor>
+      <Guid>215d64d2-031c-33c7-96e3-61794cd1ee61</Guid>
+    </COMReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Text.Encoding.CodePages" Version="9.0.7" />
+  </ItemGroup>
+
+</Project>
+
+
+private void CheckExpiredAds()
+        {
+            foreach (var folder in Directory.GetDirectories(RootFolder))
+            {
+                var expiryFile = Path.Combine(folder, "expiry_date.txt");
+                if (File.Exists(expiryFile))
+                {
+                    if (DateTime.TryParse(File.ReadAllText(expiryFile), out var expiryDate) &&
+                        expiryDate < DateTime.Now)
+                    {
+                        MoveToReady(folder);
+                    }
+                }
+            }
+        }
