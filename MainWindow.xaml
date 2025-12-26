@@ -43,28 +43,14 @@
                    FontSize="20" Margin="10,10,10,0"/>
 
         <!--поиск + кнопки-->
-        <!-- поиск + кнопки -->
         <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" Margin="10,5">
             <TextBlock Text="Поиск:" FontSize="16" VerticalAlignment="Center"/>
-            <TextBox x:Name="SearchBox" Width="200" Margin="5,0" 
-            TextChanged="SearchBox_TextChanged"/>
-
-            <!-- НОВОЕ: Выпадающий список папок -->
-            <ComboBox x:Name="FolderComboBox" 
-              Width="180" 
-              Margin="5,0"
-              ItemsSource="{Binding FavoriteFolders}"
-              DisplayMemberPath="Name"
-              SelectedValuePath="Path"
-              SelectionChanged="FolderComboBox_SelectionChanged"
-              ToolTip="Выберите рабочую папку"/>
-
-            <!-- Изменённые кнопки -->
-            <Button x:Name="AddFolderBtn" Content="+" Width="30" Margin="5,0"
-            Click="AddFolder_Click"
-            ToolTip="Добавить папку в список"/>
-            <Button Content="Обновить" Width="100"
-           Click="CheckExpired_Click"/>
+            <TextBox x:Name="SearchBox" Width="250" Margin="5,0" 
+                    TextChanged="SearchBox_TextChanged"/>
+            <Button Content="Обновить" Width="150"
+                   Click="CheckExpired_Click"/>
+            <Button Content="Выбрать папку" Width="150"
+                   Click="SelectFolder_Click"/>
         </StackPanel>
 
         <!--основной список-->
