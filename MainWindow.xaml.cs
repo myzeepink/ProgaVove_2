@@ -16,8 +16,15 @@ namespace ProgaVove2
 {   // основное окно с наследованием методов и свойств из Window - нечего объяснять
     public partial class MainWindow : Window
     {
-        public ICommand RefreshCommand => new RelayCommand(_ => CheckExpired_Click(null, null)); // refresh on F5
+        public ICommand RefreshCommand => new RelayCommand(_ => CheckExpired_Click(null, null)); // обновление на F5
+        public ObservableCollection<FavoriteFolder> FavoriteFolders { get; } = new(); // временно, список фаворит папок
         private CancellationTokenSource _loadingCancellationToken;
+        // Временный класс для теста
+        public class FavoriteFolder
+        {
+            public string Name { get; set; }
+            public string Path { get; set; }
+        }
         public class Advertisement // класс для создания объектов обьявлений
         {
             public string FolderName { get; set; }  // где хранится, по совместительству название
@@ -42,6 +49,86 @@ namespace ProgaVove2
         private string RootFolder => Path.Combine(_baseDirectory, "Используемые"); // пути от корневой _baseDirectory
         private string ReadyFolder => Path.Combine(_baseDirectory, "Готовые к использованию");
         private bool _isLoading; // флаг чтоб рекурсии не было
+        private void LoadFoldersFromRegistry() // ЗАГРУЗКА ИЗ РЕЕСТРА
+        {
+            FavoriteFolders.Clear();
+
+            try
+            {
+                using (var key = Registry.CurrentUser.OpenSubKey(@"Software\ProgaVove2\FavoriteFolders"))
+                {
+                    if (key == null) return;
+
+                    foreach (var subKeyName in key.GetSubKeyNames())
+                    {
+                        using (var folderKey = key.OpenSubKey(subKeyName))
+                        {
+                            if (folderKey != null)
+                            {
+                                var name = folderKey.GetValue("Name") as string;
+                                var path = folderKey.GetValue("Path") as string;
+
+                                if (!string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(path))
+                                {
+                                    FavoriteFolders.Add(new FavoriteFolder { Name = name, Path = path });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Ошибка загрузки из реестра: {ex.Message}");
+            }
+        }
+        private void SaveFoldersToRegistry() // СОХРАНЕНИЕ В РЕЕСТР
+        {
+            try
+            {
+                using (var key = Registry.CurrentUser.CreateSubKey(@"Software\ProgaVove2\FavoriteFolders"))
+                {
+                    // Удаляем старые записи
+                    foreach (var subKey in key.GetSubKeyNames())
+                        key.DeleteSubKeyTree(subKey);
+
+                    // Сохраняем новые
+                    for (int i = 0; i < FavoriteFolders.Count; i++)
+                    {
+                        var folderKey = key.CreateSubKey($"Folder{i}");
+                        folderKey.SetValue("Name", FavoriteFolders[i].Name);
+                        folderKey.SetValue("Path", FavoriteFolders[i].Path);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Ошибка сохранения в реестр: {ex.Message}");
+            }
+        }
+        private void FolderComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (FolderComboBox.SelectedItem is FavoriteFolder selectedFolder)
+            {
+                // Проверяем существует ли папка
+                if (!Directory.Exists(selectedFolder.Path))
+                {
+                    MessageBox.Show($"Папка не найдена:\n{selectedFolder.Path}",
+                                  "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                // Устанавливаем новую папку
+                _baseDirectory = selectedFolder.Path;
+
+                // Создаём подпапки если их нет
+                Directory.CreateDirectory(Path.Combine(_baseDirectory, "Используемые"));
+                Directory.CreateDirectory(Path.Combine(_baseDirectory, "Готовые к использованию"));
+
+                // Загружаем объявления из новой папки
+                LoadAdvertisements();
+            }
+        }
         private void SelectFolder_Click(object sender, RoutedEventArgs e)
         {
             // выбор корневой папки
@@ -67,24 +154,27 @@ namespace ProgaVove2
             InitializeComponent();
             DataContext = this;
 
-            string baseDir = SelectFolderWithWpfDialog(); // очередная переменная для папки я ебу нахуя?
-            if (baseDir == null)
-            { // ловилка exception'а если ты долбоёб
-                MessageBox.Show("Папка не выбрана! Программа закроется.");
-                Close();
-                return;
-            }
+            
 
-            _baseDirectory = baseDir; // опа нихуя
-            Directory.CreateDirectory(Path.Combine(_baseDirectory, "Используемые")); // создать если нету
-            Directory.CreateDirectory(Path.Combine(_baseDirectory, "Готовые к использованию"));
+            //string baseDir = SelectFolderWithWpfDialog(); // очередная переменная для папки я ебу нахуя?
+            //if (baseDir == null)
+            //{ // ловилка exception'а если ты долбоёб
+            //    MessageBox.Show("Папка не выбрана! Программа закроется.");
+            //    Close();
+            //    return;
+            //}
+            //_baseDirectory = baseDir; // опа нихуя
+
+            //Directory.CreateDirectory(Path.Combine(_baseDirectory, "Используемые")); // создать если нету
+            //Directory.CreateDirectory(Path.Combine(_baseDirectory, "Готовые к использованию"));
+            LoadFoldersFromRegistry();
 
             var timer = new DispatcherTimer { Interval = TimeSpan.FromHours(1) }; // таймер для автообновления списка
             timer.Tick += (s, e) => SafeCheckExpired();
             timer.Start();
 
-            SortAdvertisements(); // сортировка по дате с приоритетом того, у чего не выставлена дата
-            Loaded += (s, e) => LoadAdvertisements(); // автозагрузка на старте
+            //SortAdvertisements(); // сортировка по дате с приоритетом того, у чего не выставлена дата
+            //Loaded += (s, e) => LoadAdvertisements(); // автозагрузка на старте
 
         }
         private void SaveExpiryDate(Advertisement ad) // сохраняет дату просрочки в отдельный файл
@@ -111,13 +201,13 @@ namespace ProgaVove2
                                f.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase))
                     .ToList()
             };
-            // загрузка описания
-            var textFile = Directory.GetFiles(folderPath, "*.txt")
-                .FirstOrDefault(f => !f.EndsWith("expiry_date.txt"));
-            if (textFile != null)
-            {
-                ad.TextContent = File.ReadAllText(textFile, Encoding.GetEncoding(1251));
-            }
+            //// загрузка описания
+            //var textFile = Directory.GetFiles(folderPath, "*.txt")
+            //    .FirstOrDefault(f => !f.EndsWith("expiry_date.txt"));
+            //if (textFile != null)
+            //{
+            //    ad.TextContent = File.ReadAllText(textFile, Encoding.GetEncoding(1251));
+            //}
             // загрузка даты
             var expiryFile = Path.Combine(folderPath, "expiry_date.txt");
             if (File.Exists(expiryFile))
@@ -151,6 +241,11 @@ namespace ProgaVove2
         }
         private async void LoadAdvertisements() // осоторожно тут, пиздец, асинхрон, загрузка всех объявлений
         {
+            if (string.IsNullOrEmpty(_baseDirectory) || !Directory.Exists(_baseDirectory))
+            {
+                return; // выходим если папка не выбрана
+            }
+
             if (_isLoading) return;
             _isLoading = true;
             // показываем прогресс-бар
@@ -220,6 +315,27 @@ namespace ProgaVove2
                 ad.ExpiryDate = DateTime.Now.AddDays(days);
                 SaveExpiryDate(ad);
                 SortAdvertisements();
+            }
+        }
+        private void AddFolder_Click(object sender, RoutedEventArgs e)
+        {
+            // Сразу открываем наше окно без предварительного выбора
+            var addWindow = new AddFolderWindow
+            {
+                Owner = this
+            };
+
+            if (addWindow.ShowDialog() == true)
+            {
+                var newFolder = new FavoriteFolder
+                {
+                    Name = addWindow.FolderName,
+                    Path = addWindow.FolderPath
+                };
+
+                FavoriteFolders.Add(newFolder);
+                FolderComboBox.SelectedItem = newFolder;
+                SaveFoldersToRegistry();
             }
         }
         private void SelectDate_Click(object sender, RoutedEventArgs e) // ручной ввод даты
